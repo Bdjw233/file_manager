@@ -1,5 +1,8 @@
 import os
 import re
+import tkinter as tk
+from tkinter import filedialog, messagebox
+
 
 def extract_number(filename):
     """
@@ -10,15 +13,15 @@ def extract_number(filename):
         return match.group(0).strip()
     return None
 
+
 def normalize_number(number):
     """
     标准化编号：将字母与数字分开，字母转换为大写，并在字母和数字之间添加空格。
     """
-    # 将字母和数字分开，并统一转换为大写
     normalized = re.sub(r"([A-Z]+)(\d+)", r"\1 \2", number.upper())
-    # 将空格和连字符统一为单一空格
     normalized = re.sub(r"[\s\-]+", " ", normalized)
     return normalized.strip()
+
 
 def read_and_sort_files(directory):
     """
@@ -29,58 +32,97 @@ def read_and_sort_files(directory):
     for file in files:
         number = extract_number(file)
         if number:
-            number = normalize_number(number)  # 标准化编号
+            number = normalize_number(number)
             file_data.append((number, file))
-    # 按编号排序
     file_data.sort(key=lambda x: x[0])
     return file_data
 
-def display_files(file_data):
-    """
-    显示文件编号和对应的完整文件名。
-    """
-    print("编号 - 文件名")
-    for number, file in file_data:
-        print(f"{number} - {file}")
 
-def search_by_number(file_data, search_number):
-    """
-    按照编号查询文件。
-    """
-    search_number = normalize_number(search_number)  # 标准化用户输入的编号
-    for number, file in file_data:
-        if number == search_number:
-            return file
-    return None
+class FileManagerApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("文件管理器")
 
-def main():
-    print("欢迎使用文件管理器")
-    directory = input("请输入文件夹路径：")
-    
-    if not os.path.exists(directory) or not os.path.isdir(directory):
-        print("无效的文件夹路径。")
-        return
-    
-    # 读取并排序文件
-    file_data = read_and_sort_files(directory)
-    if not file_data:
-        print("文件夹中没有符合要求的文件。")
-        return
-    
-    # 显示文件
-    display_files(file_data)
-    
-    # 查询功能
-    while True:
-        search_number = input("\n请输入要查询的编号（或输入 'exit' 退出）：")
-        if search_number.lower() == 'exit':
-            print("退出文件管理器。")
-            break
-        result = search_by_number(file_data, search_number)
-        if result:
-            print(f"找到的文件：{result}")
+        # 页面#1：选择文件夹
+        self.page1 = tk.Frame(self.root)
+        self.page1.pack(fill=tk.BOTH, expand=True)
+
+        self.select_label = tk.Label(
+            self.page1, text="请选择一个文件夹", font=("Arial", 16))
+        self.select_label.pack(pady=20)
+
+        self.select_button = tk.Button(
+            self.page1, text="选择文件夹", command=self.select_folder, font=("Arial", 12)
+        )
+        self.select_button.pack(pady=10)
+
+        # 页面#2：文件显示界面
+        self.page2 = tk.Frame(self.root)
+
+        # 搜索框
+        self.search_bar = tk.Entry(self.page2, font=("Arial", 14))
+        self.search_bar.place(relx=0.5, rely=0.05, anchor=tk.CENTER)
+
+        self.search_button = tk.Button(
+            self.page2, text="搜索", command=self.search_file, font=("Arial", 12)
+        )
+        self.search_button.place(relx=0.7, rely=0.05, anchor=tk.CENTER)
+
+        # 文件显示区域
+        self.file_list = tk.Listbox(self.page2, font=("Arial", 12), width=50, height=20)
+        self.file_list.place(relx=0.05, rely=0.2)
+
+        self.current_directory = None
+        self.file_data = []
+
+    def select_folder(self):
+        """
+        选择文件夹并切换到文件显示界面。
+        """
+        folder = filedialog.askdirectory()
+        if folder:
+            self.current_directory = folder
+            self.file_data = read_and_sort_files(folder)
+
+            if not self.file_data:
+                messagebox.showerror("错误", "文件夹中没有符合要求的文件。")
+                return
+
+            self.show_page2()
         else:
-            print("未找到匹配的文件编号。")
+            messagebox.showwarning("警告", "未选择任何文件夹。")
+
+    def show_page2(self):
+        """
+        显示文件显示界面。
+        """
+        self.page1.pack_forget()
+        self.page2.pack(fill=tk.BOTH, expand=True)
+
+        self.file_list.delete(0, tk.END)
+        for number, file in self.file_data:
+            self.file_list.insert(tk.END, f"{number} - {file}")
+
+    def search_file(self):
+        """
+        搜索文件。
+        """
+        query = self.search_bar.get()
+        if not query:
+            messagebox.showwarning("警告", "请输入搜索编号。")
+            return
+
+        query = normalize_number(query)
+        for number, file in self.file_data:
+            if number == query:
+                messagebox.showinfo("搜索结果", f"找到的文件：{file}")
+                return
+
+        messagebox.showinfo("搜索结果", "未找到匹配的文件编号。")
+
 
 if __name__ == "__main__":
-    main()
+    root = tk.Tk()
+    app = FileManagerApp(root)
+    root.geometry("800x600")
+    root.mainloop()
